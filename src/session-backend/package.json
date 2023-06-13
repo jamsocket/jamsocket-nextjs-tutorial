@@ -1,0 +1,8 @@
+{
+  "name": "whiteboard-session-backend",
+  "type": "module",
+  "dependencies": {
+    "socket.io": "^4.6.1",
+    "ts-node": "^10.9.1"
+  }
+}
