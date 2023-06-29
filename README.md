@@ -220,7 +220,7 @@ Then let's push our new `whiteboard-demo` Docker image to our `whiteboard-demo` 
 npx jamsocket@latest push whiteboard-demo whiteboard-demo
 ```
 
-If you're `npm run dev` is still running, you should be able to refresh the page and see an avatar in the header. And if you open the app in another tab, another avatar should appear. Note that it may take a second for the backend to start up initially.
+If `npm run dev` is still running, you should be able to refresh the page and see an avatar in the header. And if you open the app in another tab, another avatar should appear. Note that it may take a second for the backend to start up initially.
 
 When we list our running backends with the CLI, we should see that our server component spawned a backend:
 
