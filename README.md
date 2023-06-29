@@ -6,7 +6,12 @@ To try out a completed version of the whiteboard from this tutorial, check out t
 
 # NextJS Tutorial
 
-Session backends are great for document-editing apps. Desktop applications often load an entire document into memory when opening it and then apply edits to the in-memory document while periodically saving the document to disk in the background. We can use session backends to achieve a similar architecture for a document-editing app in the browser. This makes it much easier to support collaborative editing features and also lets us use inexpensive blob storage (like S3) when the document is not being edited.
+Session backends are great for document-editing apps, which often load the entire document into memory and apply changes to the in-memory document. (Here, a document may be a text document, spreadsheet, vector graphic, image, or video, etc). For these kinds of applications, the session backend acts as a stateful layer between your client and storage (i.e. a database or blob store). The session backend is a place to...
+
+- quickly handle edits to the in-memory document
+- persist changes to your storage of choice in the background
+
+This makes it easier to support collaborative editing features and synchronize your document state between several users and a backing store. Using a session backend to update an in-memory document during the user session also lets you use inexpensive blob storage (like S3) when the document is not being edited. (Read more about session backends in [our blogpost about them.](https://driftingin.space/posts/session-lived-application-backends))
 
 Let's see how this can work by building a whiteboard app with multiplayer editing and presence features.
 
@@ -21,13 +26,13 @@ git clone https://github.com/drifting-in-space/jamsocket-nextjs-tutorial.git
 cd jamsocket-nextjs-tutorial
 ```
 
-In the project, you'll find a typical NextJS directory structure. We will mostly be adding code to three files:
+In the project, you'll find a typical NextJS directory structure. We'll add code to the following three files:
 
 - `src/app/page.tsx` - This is what gets rendered for the `/` path. For this tutorial, it'll be a React Server Component. We'll have it be responsible for starting up a session backend on Jamsocket.
 - `src/components/Home.tsx` - This is the main clientside component for our app. It is rendered by the Server Component in `src/app/page.tsx` and will be responsible for the bulk of the app's functionality.
 - `src/session-backend` - This directory contains the session backend logic. For this demo, the session backend will just be running a SocketIO server that holds the state of the document in memory and receives/pushes document updates to/from the users who are currently editing it.
 
-This repo also includes some helper functions and components that have already been written and that we'll be using to build our multiplayer demo:
+This repo also includes some helper functions and components to kickstart our multiplayer demo:
 
 - `src/components/Whiteboard.tsx` - This is a simple little whiteboard component that encapsulates the canvas and all the logic for creating and updating shapes from user interactions and for drawing other users' cursors to the screen.
 - `src/components/Content.tsx`, `src/components/Header.tsx` - Some helper components for the styled elements of the demo.
@@ -43,7 +48,9 @@ npm run dev
 
 Then you should be able to open the app in your browser on localhost with the port shown in the command output (probably http://localhost:3000).
 
-If everything works, you'll notice you can create shapes by clicking and dragging on the page, and you can move existing shapes around by dragging them. At this point, you're probably wondering if "whiteboard" isn't overselling it a bit. And you would be right. Implementing a full whiteboard application will be an exercise left to the reader, but, for now, this very limited whiteboard should serve us well as a demo for implementing state sharing and presence features with session backends.
+If everything works, you'll notice you can create shapes by clicking and dragging on the page. You can move existing shapes by dragging them. 
+
+At this point, you're probably wondering if "whiteboard" isn't overselling it a bit. And you would be right. Implementing a full whiteboard application will be an exercise left to the reader, but, for now, this very limited whiteboard should serve us well as a demo for implementing state sharing and presence features with session backends.
 
 Speaking of state-sharing and presence features - you'll notice that opening the app in another tab gives you a completely blank canvas. Let's see if we can't get this app to share the state of the whiteboard with other tabs.
 
@@ -55,37 +62,29 @@ Since the session backend will be our source of truth for the document state, le
 
 In `src/session-backend/index.ts` we're already importing `socket.io`, starting a WebSocket server on port 8080, and listening for new connections. Let's add some code that keeps track of which users are currently connected and emit an event to all the clients when a user connects or disconnects.
 
-For this demo, let's just store each user's socket connection along with a user id. (We'll just use `socket.id` to stand in for the user's ID.)
-
 ```ts
 const users: Set<{ id: string; socket: Socket }> = new Set()
 io.on('connection', (socket: Socket) => {
   console.log('New user connected:', socket.id)
+
+  // store each user's socket connection and user id (socket.id will be the stand in for user id)
   const newUser = { id: socket.id, socket }
   users.add(newUser)
-})
-```
 
-Then, let's add some logic to send a `user-entered` event when a new user connects.
+  // send all existing users a 'user-entered' event for the new user
+  socket.broadcast.emit('user-entered', newUser.id)
 
-```ts
-// send all existing users a 'user-entered' event for the new user
-socket.broadcast.emit('user-entered', newUser.id)
+  // send the new user a 'user-entered' event for each existing user
+  for (const user of users) {
+    newUser.socket.emit('user-entered', user.id)
+  }
 
-// send the new user a 'user-entered' event for each existing user
-for (const user of users) {
-  newUser.socket.emit('user-entered', user.id)
-}
-```
-
-Finally, let's emit a `user-exited` event when the user disconnects.
-
-```ts
-// when this user disconnects, delete the user from our set
-// and broadcast a 'user-exited' event to all the other users
-socket.on('disconnect', () => {
-  users.delete(newUser)
-  socket.broadcast.emit('user-exited', newUser.id)
+  // when this user disconnects, delete the user from our set
+  // and broadcast a 'user-exited' event to all the other users
+  socket.on('disconnect', () => {
+    users.delete(newUser)
+    socket.broadcast.emit('user-exited', newUser.id)
+  })
 })
 ```
 
@@ -119,7 +118,7 @@ The `spawnBackend()` function takes four arguments:
 
 The result of the `spawnBackend()` function contains a URL that you can use to connect to the session backend, a status URL which returns the current status of the session backend, and some other values like the backend's name and an optional bearer token which is useful when authenticating client requests to a session backend. (We aren't using these bearer tokens in this demo, but you can learn more about them [here](https://docs.jamsocket.com/backend-authentication/)).
 
-For now, let's just pass the result of the spawn request to the Home component.
+Note that `Page` is rendered in a server-side component. This ensures that your secrets aren't leaked to the client. Once we receive the spawn result, the `Page` component will pass that information to the `HomeContainer` component.
 
 ```tsx
 import { spawnBackend } from '../lib/jamsocket'
@@ -138,7 +137,7 @@ export default async function Page() {
     JAMSOCKET_TOKEN,
     WHITEBOARD_NAME
   )
-  return <Home spawnResult={spawnResult} />
+  return <HomeContainer spawnResult={spawnResult} />
 }
 ```
 
@@ -146,7 +145,7 @@ At this point, the typechecker will have some complaints. Let's fix those in the
 
 ## Connecting to our session backend
 
-In our `src/components/Home.tsx` file, we are exporting a `HomeContainer` component that just renders the `<Home>` component. Let's use this container to wrap our `Home` component with a `JamsocketBackendProvider`. This will allow us to use some React hooks for interacting with our session backend in the `Home` component.
+To connect to our session backend, the `HomeContainer` component should accept `spawnResult` as props and pass that into the `JamsocketBackendProvider`. The `JamsocketBackendProvider` lets us use the React hooks in `lib/jamsocket-backend` to interact with the session backend.
 
 ```tsx
 import { JamsocketBackendProvider } from '../lib/jamsocket-backend'
@@ -164,7 +163,8 @@ Now, in our `Home` component, we can use the `useEventListener` hook to listen f
 Let's keep track of which users are in the document with some component state. And we can pass that list of users to our `AvatarList` component which will render an avatar in the header for each user who is currently in the document.
 
 ```tsx
-import type { User } from './Whiteboard
+import type { User } from './Whiteboard'
+import {AvatarList} from './Whiteboard'
 // ...
 function Home() {
   const [users, setUsers] = useState<User[]>([])
@@ -184,14 +184,18 @@ import { JamsocketBackendProvider, useEventListener } from '../lib/jamsocket-bac
 Then we can subscribe to the events with our hook. On the `user-entered` event, we should create a user object with an `id` and a `cursorX` and `cursorY` property (we'll use these when we implement cursor presence). And on the `user-exited` event, let's just remove the user from the list of users in our component state.
 
 ```tsx
-useEventListener<string>('user-entered', (id) => {
-  const newUser = { cursorX: null, cursorY: null, id }
-  setUsers((users) => [...users, newUser])
-})
+function Home() {
+  // ...
+  useEventListener<string>('user-entered', (id) => {
+    const newUser = { cursorX: null, cursorY: null, id }
+    setUsers((users) => [...users, newUser])
+  })
 
-useEventListener<string>('user-exited', (id) => {
-  setUsers((users) => users.filter((p) => p.id !== id))
-})
+  useEventListener<string>('user-exited', (id) => {
+    setUsers((users) => users.filter((p) => p.id !== id))
+  })
+  // ...
+}
 ```
 
 Let's also import the `useReady` hook that we can use to show a spinner while the session backend is starting up. Depending on your application, it may or may not make sense to show a spinner, but for this demo we'll take the simpler approach of ensuring the session backend is running and the inital document state is loaded before the user can start editing it.
@@ -216,7 +220,7 @@ Then let's push our new `whiteboard-demo` Docker image to our `whiteboard-demo` 
 npx jamsocket@latest push whiteboard-demo whiteboard-demo
 ```
 
-Now, let's refresh the page. It might take a second for the backend to start up initially, but after a few seconds, you should see an avatar in the header. And if you open the app in another tab, another avatar should appear.
+If you're `npm run dev` is still running, you should be able to refresh the page and see an avatar in the header. And if you open the app in another tab, another avatar should appear. Note that it may take a second for the backend to start up initially.
 
 When we list our running backends with the CLI, we should see that our server component spawned a backend:
 
@@ -237,9 +241,13 @@ Most of the hard work is behind us, so let's add a few more events. Let's keep t
 We'll start by subscribing to a `cursor-position` event and updating our list of users with the user passed to it:
 
 ```tsx
-useEventListener<User>('cursor-position', (user) => {
-  setUsers((users) => users.map((p) => p.id === user.id ? user : p))
-})
+function Home() {
+  // ...
+  useEventListener<User>('cursor-position', (user) => {
+    setUsers((users) => users.map((p) => p.id === user.id ? user : p))
+  })
+  // ...
+}
 ```
 
 Then we need to send a `cursor-position` event to the session backend as our cursor moves over the whiteboard.
@@ -248,24 +256,34 @@ We can do this by importing the `useSend` hook and then creating a `sendEvent` f
 
 ```tsx
 import { JamsocketBackendProvider, useEventListener, useReady, useSend } from '../lib/jamsocket-backend'
-// ...
-const sendEvent = useSend()
+
+function Home() {
+  // ...
+  const sendEvent = useSend()
+  // ...
+}
 ```
 
 Then, we can pass a `users` prop and an `onCursorMove` prop to our `<Whiteboard>` component, that takes the cursor's position and sends it to our session backend.
 
 ```tsx
-users={users}
-onCursorMove={(position) => {
-  sendEvent('cursor-position', { x: position?.x, y: position?.y })
-}}
+<Whiteboard
+  users={users}
+  onCursorMove={(position) => {
+    sendEvent('cursor-position', { x: position?.x, y: position?.y })
+  }
+/>
 ```
 
 Now we just need to add a `cursor-position` event to our session backend code. In our `src/session-backend/index.ts` file let's subscribe to the `cursor-position` event and emit a `cursor-position` event to all connected clients. We can use `volatile.broadcast` here because it's okay if we drop a couple `cursor-position` events here and there. For cursor positions, we really just care about the most recent cursor position message.
 
 ```ts
-socket.on('cursor-position', ({ x, y }) => {
-  socket.volatile.broadcast.emit('cursor-position', { id: socket.id, cursorX: x, cursorY: y })
+io.on('connection', (socket: Socket) => {
+  console.log('New user connected:', socket.id)
+  socket.on('cursor-position', ({ x, y }) => {
+    socket.volatile.broadcast.emit('cursor-position', { id: socket.id, cursorX: x, cursorY: y })
+  })
+  // ...
 })
 ```
 
@@ -296,7 +314,7 @@ import type { Shape } from '../components/Whiteboard'
 //...
 const shapes: Shape[] = []
 io.on('connection', (socket) => {
-  console.log('New user connected:', socket.id)
+  // ...
   socket.emit('snapshot', shapes)
   // ...
 })
@@ -305,19 +323,23 @@ io.on('connection', (socket) => {
 Next, let's listen for two new events: `create-shape` and `update-shape`, updating our list of shapes accordingly.
 
 ```ts
-socket.on('create-shape', (shape) => {
-  shapes.push(shape)
-  socket.broadcast.emit('snapshot', shapes)
-})
+io.on('connection', (socket: Socket) => {
+  // ...
+  socket.on('create-shape', (shape: Shape) => {
+    shapes.push(shape)
+    socket.broadcast.emit('snapshot', shapes)
+  })
 
-socket.on('update-shape', (updatedShape) => {
-  const shape = shapes.find(s => s.id === updatedShape.id)
-  if (!shape) return
-  shape.x = updatedShape.x
-  shape.y = updatedShape.y
-  shape.w = updatedShape.w
-  shape.h = updatedShape.h
-  socket.broadcast.emit('update-shape', shape)
+  socket.on('update-shape', (updatedShape: Shape) => {
+    const shape = shapes.find(s => s.id === updatedShape.id)
+    if (!shape) return
+    shape.x = updatedShape.x
+    shape.y = updatedShape.y
+    shape.w = updatedShape.w
+    shape.h = updatedShape.h
+    socket.broadcast.emit('update-shape', shape)
+  })
+  // ...
 })
 ```
 
@@ -330,37 +352,40 @@ npx jamsocket@latest push whiteboard-demo whiteboard-demo
 
 Now, let's add our `sendEvent()` and `useEventListener()` calls to the `Home` component.
 
-First, we should listen for our new `snapshot` events:
+First, we should listen for our new `snapshot` and `update-shape` events:
 
 ```tsx
-useEventListener<Shape[]>('snapshot', (shapes) => {
-  setShapes(shapes)
-})
-```
-
-We also need to listen for `update-shape` events from the session backend:
-
-```tsx
-useEventListener<Shape>('update-shape', (shape) => {
-  setShapes((shapes) => {
-    const shapeToUpdate = shapes.find((s) => s.id === shape.id)
-    if (!shapeToUpdate) return [...shapes, shape]
-    return shapes.map((s) => s.id === shape.id ? { ...s, ...shape } : s)
+function Home() {
+  // ...
+  useEventListener<Shape[]>('snapshot', (shapes) => {
+    setShapes(shapes)
   })
-})
+
+  useEventListener<Shape>('update-shape', (shape) => {
+    setShapes((shapes) => {
+      const shapeToUpdate = shapes.find((s) => s.id === shape.id)
+      if (!shapeToUpdate) return [...shapes, shape]
+      return shapes.map((s) => s.id === shape.id ? { ...s, ...shape } : s)
+    })
+  })
+  // ... 
+}
 ```
 
 Then in our `onCreateShape` and `onUpdateShape` Whiteboard props, we should send the appropriate event to the session backend:
 
 ```tsx
-onCreateShape={(shape) => {
-  sendEvent('create-shape', shape)
-  setShapes([...shapes, shape])
-}}
-onUpdateShape={(id, shape) => {
-  sendEvent('update-shape', { id, ...shape })
-  setShapes((shapes) => shapes.map((s) => s.id === id ? { ...s, ...shape } : s))
-}}
+<Whiteboard
+  onCreateShape={(shape) => {
+    sendEvent('create-shape', shape)
+    setShapes([...shapes, shape])
+  }}
+  onUpdateShape={(id, shape) => {
+    sendEvent('update-shape', { id, ...shape })
+    setShapes((shapes) => shapes.map((s) => s.id === id ? { ...s, ...shape } : s))
+  }}
+  // ...
+/>
 ```
 
 Now, all that's left is for us to make sure we don't have any running backends, and then refresh the page:

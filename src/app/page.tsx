@@ -1,7 +1,7 @@
 import 'server-only';
-import Home from '../components/Home'
+import HomeContainer from '../components/Home'
 
 
 export default async function Page() {
-  return <Home />
+  return <HomeContainer />
 }
