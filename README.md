@@ -307,7 +307,7 @@ Now, let's open the application in a few browser tabs. If everything works, movi
 
 The last thing we want to do in this demo is implement state-sharing. Right now, when you refresh the page, you lose all the shapes you've drawn. And when another connected client draws shapes, you can't see them. Let's fix that.
 
-This time, we'll start with our session backend code. Let's create an array to store all the shapes, and when a new user connects, let's send them a snapshot of all the shapes.
+This time, we'll start with our session backend code. Let's create an array to store all the shapes. When a new user connects, we'll send them a snapshot of all the shapes. Let's also listen for two new events: `create-shape` and `update-shape`, which will update our list of shapes accordingly.
 
 ```ts
 import type { Shape } from '../components/Whiteboard'
@@ -316,15 +316,7 @@ const shapes: Shape[] = []
 io.on('connection', (socket) => {
   // ...
   socket.emit('snapshot', shapes)
-  // ...
-})
-```
 
-Next, let's listen for two new events: `create-shape` and `update-shape`, updating our list of shapes accordingly.
-
-```ts
-io.on('connection', (socket: Socket) => {
-  // ...
   socket.on('create-shape', (shape: Shape) => {
     shapes.push(shape)
     socket.broadcast.emit('snapshot', shapes)
@@ -339,7 +331,6 @@ io.on('connection', (socket: Socket) => {
     shape.h = updatedShape.h
     socket.broadcast.emit('update-shape', shape)
   })
-  // ...
 })
 ```
 
