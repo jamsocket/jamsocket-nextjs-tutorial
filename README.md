@@ -32,12 +32,10 @@ In the project, you'll find a typical NextJS directory structure. We'll add code
 - `src/components/Home.tsx` - This is the main clientside component for our app. It is rendered by the Server Component in `src/app/page.tsx` and will be responsible for the bulk of the app's functionality.
 - `src/session-backend` - This directory contains the session backend logic. For this demo, the session backend will just be running a [SocketIO](https://socket.io) server that holds the state of the document in memory and receives/pushes document updates to/from the users who are currently editing it.
 
-This repo also includes some helper functions and components to kickstart our multiplayer demo:
+This repo also includes some helper components to kickstart our multiplayer demo:
 
 - `src/components/Whiteboard.tsx` - This is a simple little whiteboard component that encapsulates the canvas and all the logic for creating and updating shapes from user interactions and for drawing other users' cursors to the screen.
 - `src/components/Content.tsx`, `src/components/Header.tsx` - Some helper components for the styled elements of the demo.
-- `src/lib/jamsocket.ts` - This contains a helper function for spawning session backends on Jamsocket.
-- `src/lib/jamsocket-backend.tsx` - This helper lib exports some hooks and a SessionBackendProvider that we'll use to interact with our session backend.
 
 Once you've cloned the repo, run:
 
@@ -107,36 +105,50 @@ Also, if you haven't generated an API token yet, now is a good time to do that [
 
 ## Spawning our session backend
 
-In our Page component, let's import a helper function from our library that we can use to spawn a backend.
+In our Page component, let's import `@jamsocket/javascript/server`. It contains helper functions that we can use when spawning and communicating with session backends. It's important that we spawn from server code as we'll be using an API token that we want to keep secret, so let's use our React Server Component (`src/app/page.tsx`). Notice that when we import our library, we'll be specifically using the `/server` subpath.
 
-The `spawnBackend()` function takes four arguments:
+```ts title="src/app/page.tsx"
+import 'server-only'
+import { init } from '@jamsocket/javascript/server'
+
+const spawnBackend = init({
+  account: [FILL ME IN],
+  // NOTE: we want to keep the Jamsocket token secret, so we can only do this in a server component
+  // import 'server-only' at the top of this file to ensure these values are never included in the client bundle
+  token: [FILL ME IN]
+})
+```
+
+The `init` function here takes two arguments:
 
 * an account name - that's the account name you created when you signed up for Jamsocket (which you can find on [the Settings page](https://app.jamsocket.com/settings) in case you forgot)
-* a service name - that's the name of the service we just created - `whiteboard-demo`
 * an api token - that's the token you created earlier (you can create another one [here](https://app.jamsocket.com/settings) if you need to)
+
+And it returns a `spawnBackend()` function that we'll use to, well, spawn a backend. It takes two arguments:
+
+* a service name - that's the name of the service we just created - `whiteboard-demo`
 * a document name - for this demo, we'll just have one document that everybody edits called `whiteboard-demo/default` (this string is used as a lock - you can learn more about spawning with locks [here](/locking-a-backend-to-a-resource))
 
 The result of the `spawnBackend()` function contains a URL that you can use to connect to the session backend, a status URL which returns the current status of the session backend, and some other values like the backend's name and an optional bearer token which is useful when authenticating client requests to a session backend. (We aren't using these bearer tokens in this demo, but you can learn more about them [here](https://docs.jamsocket.com/backend-authentication/)).
 
 Note that `Page` is rendered in a server-side component. This ensures that your secrets aren't leaked to the client. Once we receive the spawn result, the `Page` component will pass that information to the `HomeContainer` component. 
 
-```ts title="src/app/page.tsx"
-import { spawnBackend } from '../lib/jamsocket'
+```ts title="src/app/page.tsx" hl_lines="4 5 15 16"
+import 'server-only'
+import { init } from '@jamsocket/javascript/server'
 
-// NOTE: we want to keep the JAMSOCKET_TOKEN secret, so we can only do this in a server component
-// import 'server-only' at the top of this file to ensure these values are never included in the client bundle
-const JAMSOCKET_ACCOUNT = '[FILL ME IN]'
 const JAMSOCKET_SERVICE = 'whiteboard-demo'
-const JAMSOCKET_TOKEN = '[FILL ME IN]'
 const WHITEBOARD_NAME = 'whiteboard-demo/default'
 
+const spawnBackend = init({
+  account: [FILL ME IN],
+  // NOTE: we want to keep the Jamsocket token secret, so we can only do this in a server component
+  // import 'server-only' at the top of this file to ensure these values are never included in the client bundle
+  token: [FILL ME IN]
+})
+
 export default async function Page() {
-  const spawnResult = await spawnBackend(
-    JAMSOCKET_ACCOUNT,
-    JAMSOCKET_SERVICE,
-    JAMSOCKET_TOKEN,
-    WHITEBOARD_NAME
-  )
+  const spawnResult = await spawnBackend(JAMSOCKET_SERVICE, WHITEBOARD_NAME)
   return <HomeContainer spawnResult={spawnResult} />
 }
 ```
@@ -145,22 +157,19 @@ At this point, the typechecker will have some complaints. Let's fix those in the
 
 ## Connecting to our session backend
 
-To connect to our session backend, the `HomeContainer` component should accept `spawnResult` as props and pass that into the `JamsocketBackendProvider`. The `JamsocketBackendProvider` lets us use the React hooks in `lib/jamsocket-backend` to interact with the session backend. 
+To connect to our session backend, the `HomeContainer` component should accept `spawnResult` as props and pass that into the `SessionBackendProvider`. The `SessionBackendProvider` lets us use the React hooks in `@jamsocket/javascript/react` to interact with the session backend. 
 
 ```ts title="src/components/Home.tsx"
-import { JamsocketBackendProvider } from '../lib/jamsocket-backend'
-import type { SpawnResult } from '../lib/jamsocket'
+import { SessionBackendProvider } from '@jamsocket/javascript/react'
+import type { SpawnResult } from '@jamsocket/javascript/types'
 
 export default function HomeContainer({ spawnResult }: { spawnResult: SpawnResult }) {
-  return <JamsocketBackendProvider spawnResult={spawnResult}>
+  return <SessionBackendProvider spawnResult={spawnResult}>
     <Home />
-  </JamsocketBackendProvider>
+  </SessionBackendProvider>
 }
 ```
-
-Now, in our `Home` component, we can use the `useEventListener` hook to listen for our `user-entered` and `user-exited` events.
-
-Let's keep track of which users are in the document with some component state. And we can pass that list of users to our `AvatarList` component which will render an avatar in the header for each user who is currently in the document.
+Next, let's keep track of which users are in the document with some component state. And we can pass that list of users to our `AvatarList` component which will render an avatar in the header for each user who is currently in the document.
 
 ```ts title="src/components/Home.tsx"
 import type { User } from './Whiteboard'
@@ -175,10 +184,10 @@ function Home() {
 }
 ```
 
-Next, let's import the `useEventListener` hook that we'll use to subscribe to the WebSocket events we're sending from our session backend:
+Now, in our `Home` component, we can use the `useEventListener` hook to listen for our `user-entered` and `user-exited` events we're sending from our session backend.
 
 ```ts title="src/components/Home.tsx"
-import { JamsocketBackendProvider, useEventListener } from '../lib/jamsocket-backend'
+import { SessionBackendProvider, useEventListener } from '@jamsocket/javascript/react'
 ```
 
 Then we can subscribe to the events with our hook. On the `user-entered` event, we should create a user object with an `id` and a `cursorX` and `cursorY` property (we'll use these when we implement cursor presence). And on the `user-exited` event, let's just remove the user from the list of users in our component state.
@@ -201,7 +210,7 @@ function Home() {
 Let's also import the `useReady` hook that we can use to show a spinner while the session backend is starting up. Depending on your application, it may or may not make sense to show a spinner, but for this demo we'll take the simpler approach of ensuring the session backend is running and the inital document state is loaded before the user can start editing it.
 
 ```ts title="src/components/Home.tsx"
-import { JamsocketBackendProvider, useEventListener, useReady } from '../lib/jamsocket-backend'
+import { SessionBackendProvider, useEventListener, useReady } from '@jamsocket/javascript/react'
 // ...
 const ready = useReady()
 ```
@@ -255,7 +264,7 @@ Then we need to send a `cursor-position` event to the session backend as our cur
 We can do this by importing the `useSend` hook and then creating a `sendEvent` function with it:
 
 ```ts title="src/components/Home.tsx" hl_lines="1 5"
-import { JamsocketBackendProvider, useEventListener, useReady, useSend } from '../lib/jamsocket-backend'
+import { SessionBackendProvider, useEventListener, useReady, useSend } from '@jamsocket/javascript/react'
 
 function Home() {
   // ...
