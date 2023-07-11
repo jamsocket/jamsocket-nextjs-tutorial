@@ -113,6 +113,7 @@ import { init } from '@jamsocket/javascript/server'
 
 const spawnBackend = init({
   account: [FILL ME IN],
+  service: 'whiteboard-demo',
   // NOTE: we want to keep the Jamsocket token secret, so we can only do this in a server component
   // import 'server-only' at the top of this file to ensure these values are never included in the client bundle
   token: [FILL ME IN]
@@ -122,33 +123,31 @@ const spawnBackend = init({
 The `init` function here takes two arguments:
 
 * an account name - that's the account name you created when you signed up for Jamsocket (which you can find on [the Settings page](https://app.jamsocket.com/settings) in case you forgot)
+* a service name - that's the name of the service we just created - `whiteboard-demo`
 * an api token - that's the token you created earlier (you can create another one [here](https://app.jamsocket.com/settings) if you need to)
 
-And it returns a `spawnBackend()` function that we'll use to, well, spawn a backend. It takes two arguments:
-
-* a service name - that's the name of the service we just created - `whiteboard-demo`
-* a document name - for this demo, we'll just have one document that everybody edits called `whiteboard-demo/default` (this string is used as a lock - you can learn more about spawning with locks [here](/locking-a-backend-to-a-resource))
+And it returns a `spawnBackend()` function that we'll use to, well, spawn a backend. It takes a single, optional `spawnOptions` argument. These `spawnOptions` are just camel-cased versions of the options accepted by the HTTP spawn API. (Our docs have more information about [spawn options for the HTTP API](https://docs.jamsocket.com/api-docs/#spawn-a-service).) For now, we will only use one of those spawn options: `lock`. You can learn more about spawning with locks [here](/locking-a-backend-to-a-resource), but for now it suffices to say that we'll just use a document name. And for this demo, we'll just have one document that everybody edits called `whiteboard-demo/default`.
 
 The result of the `spawnBackend()` function contains a URL that you can use to connect to the session backend, a status URL which returns the current status of the session backend, and some other values like the backend's name and an optional bearer token which is useful when authenticating client requests to a session backend. (We aren't using these bearer tokens in this demo, but you can learn more about them [here](https://docs.jamsocket.com/backend-authentication/)).
 
 Note that `Page` is rendered in a server-side component. This ensures that your secrets aren't leaked to the client. Once we receive the spawn result, the `Page` component will pass that information to the `HomeContainer` component. 
 
-```ts title="src/app/page.tsx" hl_lines="4 5 15 16"
+```ts title="src/app/page.tsx" hl_lines="4 15 16"
 import 'server-only'
 import { init } from '@jamsocket/javascript/server'
 
-const JAMSOCKET_SERVICE = 'whiteboard-demo'
 const WHITEBOARD_NAME = 'whiteboard-demo/default'
 
 const spawnBackend = init({
   account: [FILL ME IN],
+  service: 'whiteboard-demo',
   // NOTE: we want to keep the Jamsocket token secret, so we can only do this in a server component
   // import 'server-only' at the top of this file to ensure these values are never included in the client bundle
   token: [FILL ME IN]
 })
 
 export default async function Page() {
-  const spawnResult = await spawnBackend(JAMSOCKET_SERVICE, WHITEBOARD_NAME)
+  const spawnResult = await spawnBackend({ lock: WHITEBOARD_NAME })
   return <HomeContainer spawnResult={spawnResult} />
 }
 ```
