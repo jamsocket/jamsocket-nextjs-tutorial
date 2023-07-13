@@ -172,6 +172,11 @@ export function Whiteboard({
         onMouseMove={onMouseMove}
         onMouseLeave={onMouseLeave}
       />
+      {shapes.length > 0 ? null : (
+        <div className="text-gray-500 text-xl font-light absolute top-0 w-full h-full flex items-center justify-center pointer-events-none">
+          <div>Click and drag to draw rectangles</div>
+        </div>
+      )}
       <Cursors positions={cursorPositions} />
     </div>
   )
