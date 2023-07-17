@@ -125,7 +125,7 @@ The `init` function here takes three arguments:
 
 * an account name - that's the account name you created when you signed up for Jamsocket (which you can find on [the Settings page](https://app.jamsocket.com/settings) in case you forgot)
 * a service name - that's the name of the service we just created - `whiteboard-demo`
-* an api token - we can leave this blank for now as the dev CLI we'll use will take care of authentication while we're development. When it's time to go to production, we can get an API token from [the Settings page](https://app.jamsocket.com/settings).
+* an api token - we can leave this blank for now as the Jamsocket dev CLI will take care of authentication while we're development. When it's time to go to production, we can get an API token from [the Settings page](https://app.jamsocket.com/settings).
 
 And it returns a `spawnBackend()` function that we'll use to, well, spawn a backend. It takes a single, optional `spawnOptions` argument. These `spawnOptions` are just camel-cased versions of the options accepted by the HTTP spawn API. (Our docs have more information about [spawn options for the HTTP API](https://docs.jamsocket.com/api-docs/#spawn-a-service).) For now, we will only use one of those spawn options: `lock`. You can learn more about spawning with locks [here](/locking-a-backend-to-a-resource), but for now it suffices to say that we'll just use a document name. And for this demo, we'll just have one document that everybody edits called `whiteboard-demo/default`.
 
@@ -240,9 +240,9 @@ Finally - the moment of truth. Let's start the Jamsocket dev CLI to see if every
 npx jamsocket@latest dev
 ```
 
-The dev CLI does several things to make development easier, the first of which is watching our session-backend code for changes. When a change is detected, it will rebuild the session backend Docker image and push it to the Jamsocket container registry. If you've run `npx jamsocket@latest dev`, it should have already done this.
+The dev CLI does several things to make development easier, the first of which is automatically rebuilding our session backend Docker image when the code changes. When you run `npx jamsocket@latest dev`, the first thing it does is build your session backend code and push to the Jamsocket container registry.
 
-Let's take a quick look at the `jamsocket.config.js` file in the project root to see how this works:
+Let's take a quick look at the `jamsocket.config.js` file in the project root to see how all this works:
 
 ```js title="jamsocket.config.js"
 module.exports = {
@@ -252,13 +252,13 @@ module.exports = {
 }
 ```
 
-This config file is used by the dev CLI (and only the dev CLI) so it knows (1) what Dockerfile to use to build the session backend, (2) what Jamsocket service to push the docker image to, and (3) which parts of the file system to watch for changes.
+This config file is used by the dev CLI so it knows (1) what Dockerfile to use to build the session backend, (2) what Jamsocket service to push the Docker image to, and (3) which parts of the file system to watch for changes.
 
 So in our demo, the dev CLI will watch the `src/session-backend` directory, and when a change is detected, it will build the `Dockerfile.jamsocket` Dockerfile. Then it will push the resulting Docker image to the Jamsocket container registry for your `whiteboard-demo` service.
 
 If you're interested in learning how to manually build and push your docker image to the Jamsocket registry, check out [the Hello World Tutorial](https://docs.jamsocket.com/hello-world) which has a simple example.
 
-The second thing the dev CLI does for us is keep track of session backends we've spawned during development, terminating backends that are running old code, and streaming status updates and logs from the your session backend. It does this by running a proxy server that we'll use when spawning. To make that work, let's add this line to our Jamsocket `init()` function in `page.tsx`:
+The second thing the dev CLI does for us is keep track of session backends we've spawned during development, terminating backends that are running old code, and streaming status updates and logs from your session backend. It does this by running a proxy server that we'll use when spawning. To make that work, let's pass in an `apiUrl` to our Jamsocket `init()` function in `page.tsx`:
 
 ```ts title="src/app/page.tsx" hl_lines="7"
 const spawnBackend = init({
@@ -273,9 +273,9 @@ const spawnBackend = init({
 
 (Note: when it comes time to make this app production-ready, you'll likely want to check an environment variable and only set `apiUrl` in a development environment.)
 
-Now with both Jamsocket dev CLI and `npm run dev` running in separate terminal windows, you should be able to refresh the page and see an avatar in the header. And if you open the app in another tab, another avatar should appear. Note that it may take a second for the backend to start up initially. On the paid tier, images are cached on the servers that spawn them which make the startup times much faster. ([Contact us](hi@driftingin.space) about moving to a paid plan.)
+Now with both Jamsocket dev CLI and `npm run dev` running in separate terminal windows, you should be able to refresh the page and see an avatar in the header. And if you open the app in another window, another avatar should appear. Note that it may take a second for the backend to start up initially. (On the paid tier, images are cached on the servers that spawn them which make the startup times much faster. [Contact us](hi@driftingin.space) about moving to a paid plan.)
 
-If you take a look at the dev CLI output, you should see that our server component spawned a backend and now its statuses and logs should be appearing in the dev CLI output.
+If you take a look at the terminal window running the dev CLI, you should see that our server component spawned a backend and now its statuses and logs are appearing in the dev CLI output.
 
 ## Implementing cursor presence
 
