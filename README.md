@@ -13,7 +13,9 @@ Session backends are great for document-editing apps, which often load the entir
 
 This makes it easier to support collaborative editing features and synchronize your document state between several users and a backing store. Using a session backend to update an in-memory document during the user session also lets you use inexpensive blob storage (like S3) when the document is not being edited. (Read more about session backends in [our blogpost about them](https://driftingin.space/posts/session-lived-application-backends).)
 
-Let's see how this can work by building a whiteboard app with multiplayer editing and presence features.
+Let's see how this can work by building a whiteboard app with multiplayer editing and presence features. Here's a little preview of what we're building in this tutorial:
+
+![jamsocket-nextjs-demo](assets/jamsocket-nextjs-demo.gif "jamsocket-nextjs-demo"){ width="750px" }
 
 Note: we'll be using [Docker's command-line tool](https://www.docker.com/get-started) and [NodeJS](https://nodejs.org/en/), so get those installed if you haven't already. You'll also want to get a free Jamsocket API token. You can log in or create an account at [app.jamsocket.com](https://app.jamsocket.com), and create an API token on [the Settings page](https://app.jamsocket.com/settings).
 
