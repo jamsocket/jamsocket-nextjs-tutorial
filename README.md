@@ -1,5 +1,7 @@
 # jamsocket-nextjs-tutorial
 
+**WARNING: THIS BRANCH IS THE HOSTED VERSION OF THIS DEMO. CHECK OUT THE `completed` OR `main` BRANCHES**
+
 This repo is a starter repo for the Jamsocket NextJS + Socket.io Tutorial. The tutorial walks through how to use Jamsocket and Socket.io to add multiplayer presence and state-sharing features to a NextJS whiteboard app.
 
 To try out a completed version of the whiteboard from this tutorial, check out the `completed` branch, run `npm install` and `npm run dev`. Then run `npx jamsocket dev` in a separate terminal tab and visit `http://localhost:3000`.
