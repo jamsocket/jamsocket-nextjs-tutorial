@@ -154,14 +154,13 @@ export function Whiteboard({
     }
   }
 
-  const cursorPositions = users
+  const cursors = users
     .filter((u) => !!u.cursorX && !!u.cursorY && ctx)
-    .map((u) => {
-      return {
+    .map((u) => ({
+        color: getColorFromStr(u.id),
         x: u.cursorX! + ctx!.canvas.width / 2,
         y: u.cursorY! + ctx!.canvas.height / 2
-      }
-    })
+    }))
 
   return (
     <div className="w-full h-full relative">
@@ -177,17 +176,17 @@ export function Whiteboard({
           <div>Click and drag to draw rectangles</div>
         </div>
       )}
-      <Cursors positions={cursorPositions} />
+      <Cursors cursors={cursors} />
     </div>
   )
 }
 
-function Cursors({ positions }: { positions: { x: number, y: number }[] }) {
+function Cursors({ cursors }: { cursors: { x: number, y: number, color: string }[] }) {
   return (
     <div className="absolute top-0 w-full h-full pointer-events-none z-10 bg-yellow overflow-hidden">
-      {positions.map(({ x, y }, idx) => {
+      {cursors.map(({ x, y, color }, idx) => {
         return <svg key={idx} className="absolute h-8 w-8" style={{ transform: `translate(${x}px, ${y}px)` }} width="100%" height="100%" viewBox="8 8 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M22 15.5068L10 10L12.8382 23L16.3062 17.8654L22 15.5068Z" fill="#363B3E"/>
+          <path d="M22 15.5068L10 10L12.8382 23L16.3062 17.8654L22 15.5068Z" fill={color}/>
           <path d="M22.1914 15.9687L23.2499 15.5302L22.2085 15.0523L10.2085 9.54556L9.29776 9.12761L9.51151 10.1066L12.3497 23.1066L12.5988 24.2477L13.2525 23.2799L16.6364 18.2698L22.1914 15.9687Z" stroke="white"/>
         </svg>
       })}
@@ -210,13 +209,16 @@ function randomColor() {
 export function AvatarList({ users }: { users: User[] }) {
   return (
     <div className="isolate flex -space-x-4 overflow-hidden">
-      {users.map((u, i) => (
-        <span className="inline-block h-10 w-10 overflow-hidden rounded-full bg-gray-100 border-2 border-white" key={i}>
-          <svg className="h-full w-full text-gray-300" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M24 20.993V24H0v-2.996A14.977 14.977 0 0112.004 15c4.904 0 9.26 2.354 11.996 5.993zM16.002 8.999a4 4 0 11-8 0 4 4 0 018 0z" />
-          </svg>
-        </span>
-      ))}
+      {users.map((u, i) => {
+        const color = getColorFromStr(u.id)
+        return (
+          <span className="inline-block h-10 w-10 overflow-hidden rounded-full bg-gray-100 border-2 border-white" key={i}>
+            <svg className="h-full w-full text-gray-300" fill={color} viewBox="0 0 24 24">
+              <path d="M24 20.993V24H0v-2.996A14.977 14.977 0 0112.004 15c4.904 0 9.26 2.354 11.996 5.993zM16.002 8.999a4 4 0 11-8 0 4 4 0 018 0z" />
+            </svg>
+          </span>
+        )
+      })}
     </div>
   )
 }
@@ -228,4 +230,12 @@ export function Spinner() {
       Loading...
     </div>
   )
+}
+
+function getColorFromStr(str: string) {
+  const hash = str
+    .split('')
+    .reduce((acc, char) => (acc << 5) - acc + char.charCodeAt(0), 0)
+  const hue = Math.abs(hash) % 360
+  return `hsl(${hue}, 65%, 65%)`
 }
