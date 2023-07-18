@@ -104,11 +104,9 @@ npx jamsocket@latest login
 npx jamsocket@latest service create whiteboard-demo
 ```
 
-Also, if you haven't generated an API token yet, now is a good time to do that [here on the Settings page](https://app.jamsocket.com/settings).
-
 ## Spawning our session backend
 
-In our Page component, let's import `@jamsocket/javascript/server`. It contains helper functions that we can use when spawning and communicating with session backends. It's important that we spawn from server code as we'll be using an API token that we want to keep secret, so let's use our React Server Component (`src/app/page.tsx`). Notice that when we import our library, we'll be specifically using the `/server` subpath.
+In our Page component, let's import `@jamsocket/javascript/server`. It contains helper functions that we can use when spawning and communicating with session backends. It's important that we spawn from server code as eventually we'll be using an API token that we want to keep secret, so let's use our React Server Component (`src/app/page.tsx`). Notice that when we import our library, we'll be specifically using the `/server` subpath.
 
 ```ts title="src/app/page.tsx"
 import 'server-only'
@@ -118,8 +116,8 @@ const spawnBackend = init({
   account: [FILL ME IN],
   service: 'whiteboard-demo',
   // NOTE: we want to keep the Jamsocket token secret, so we can only do this in a server component
-  // import 'server-only' at the top of this file to ensure these values are never included in the client bundle
-  token: [FILL ME IN]
+  // We'll leave this blank for now, since we don't need it when developing with the dev CLI
+  token: ''
 })
 ```
 
@@ -127,7 +125,7 @@ The `init` function here takes three arguments:
 
 * an account name - that's the account name you created when you signed up for Jamsocket (which you can find on [the Settings page](https://app.jamsocket.com/settings) in case you forgot)
 * a service name - that's the name of the service we just created - `whiteboard-demo`
-* an api token - that's the token you created earlier (you can create another one [here](https://app.jamsocket.com/settings) if you need to)
+* an api token - we can leave this blank for now as the Jamsocket dev CLI will take care of authentication while we're development. When it's time to go to production, we can get an API token from [the Settings page](https://app.jamsocket.com/settings).
 
 And it returns a `spawnBackend()` function that we'll use to, well, spawn a backend. It takes a single, optional `spawnOptions` argument. These `spawnOptions` are just camel-cased versions of the options accepted by the HTTP spawn API. (Our docs have more information about [spawn options for the HTTP API](https://docs.jamsocket.com/api-docs/#spawn-a-service).) For now, we will only use one of those spawn options: `lock`. You can learn more about spawning with locks [here](/locking-a-backend-to-a-resource), but for now it suffices to say that we'll just use a document name. And for this demo, we'll just have one document that everybody edits called `whiteboard-demo/default`.
 
@@ -145,8 +143,8 @@ const spawnBackend = init({
   account: [FILL ME IN],
   service: 'whiteboard-demo',
   // NOTE: we want to keep the Jamsocket token secret, so we can only do this in a server component
-  // import 'server-only' at the top of this file to ensure these values are never included in the client bundle
-  token: [FILL ME IN]
+  // We'll leave this blank for now, since we don't need it when developing with the dev CLI
+  token: ''
 })
 
 export default async function Page() {
@@ -236,33 +234,48 @@ function Home() {
 }
 ```
 
-Finally - the moment of truth. Let's push our session backend code to Jamsocket and then load the page to see if everything works!
-
-Pushing our code to Jamsocket currently just means building the session-backend code into a Docker image and using the Jamsocket CLI to push it to our container registry. So let's build our docker image using `Dockerfile.jamsocket`, for the `linux/amd64` platform, and give it the tag `whiteboard-demo`.
+Finally - the moment of truth. Let's start the Jamsocket dev CLI to see if everything works! In another terminal window:
 
 ```
-docker build -t whiteboard-demo --platform=linux/amd64 -f Dockerfile.jamsocket .
+npx jamsocket@latest dev
 ```
 
-Then let's push our new `whiteboard-demo` Docker image to our `whiteboard-demo` service.
+The dev CLI does several things to make development easier, the first of which is automatically rebuilding our session backend Docker image when the code changes. When you run `npx jamsocket@latest dev`, the first thing it does is build your session backend code and push to the Jamsocket container registry.
 
-```
-npx jamsocket@latest push whiteboard-demo whiteboard-demo
-```
+Let's take a quick look at the `jamsocket.config.js` file in the project root to see how all this works:
 
-If `npm run dev` is still running, you should be able to refresh the page and see an avatar in the header. And if you open the app in another tab, another avatar should appear. Note that it may take a second for the backend to start up initially. On the paid tier, images are cached on the servers that spawn them which make the startup times much faster. ([Contact us](hi@driftingin.space) about moving to a paid plan.)
-
-When we list our running backends with the CLI, we should see that our server component spawned a backend:
-
-```sh
-npx jamsocket@latest backend list
+```js title="jamsocket.config.js"
+module.exports = {
+  dockerfile: './Dockerfile.jamsocket',
+  service: 'whiteboard-demo',
+  watch: ['./src/session-backend']
+}
 ```
 
-And using the name of that backend, you can stream its logs via the CLI:
+This config file is used by the dev CLI so it knows (1) what Dockerfile to use to build the session backend, (2) what Jamsocket service to push the Docker image to, and (3) which parts of the file system to watch for changes.
 
-```sh
-npx jamsocket@latest logs [BACKEND]
+So in our demo, the dev CLI will watch the `src/session-backend` directory, and when a change is detected, it will build the `Dockerfile.jamsocket` Dockerfile. Then it will push the resulting Docker image to the Jamsocket container registry for your `whiteboard-demo` service.
+
+If you're interested in learning how to manually build and push your docker image to the Jamsocket registry, check out [the Hello World Tutorial](https://docs.jamsocket.com/hello-world) which has a simple example.
+
+The second thing the dev CLI does for us is keep track of session backends we've spawned during development, terminating backends that are running old code, and streaming status updates and logs from your session backend. It does this by running a proxy server that we'll use when spawning. To make that work, let's pass in an `apiUrl` to our Jamsocket `init()` function in `page.tsx`:
+
+```ts title="src/app/page.tsx" hl_lines="7"
+const spawnBackend = init({
+  account: [FILL ME IN],
+  service: 'whiteboard-demo',
+  // NOTE: we want to keep the Jamsocket token secret, so we can only do this in a server component
+  // We'll leave this blank for now, since we don't need it when developing with the dev CLI
+  token: '',
+  apiUrl: 'http://localhost:8080'
+})
 ```
+
+(Note: when it comes time to make this app production-ready, you'll likely want to check an environment variable and only set `apiUrl` in a development environment.)
+
+Now with both Jamsocket dev CLI and `npm run dev` running in separate terminal windows, you should be able to refresh the page and see an avatar in the header. And if you open the app in another window, another avatar should appear. Note that it may take a second for the backend to start up initially. (On the paid tier, images are cached on the servers that spawn them which make the startup times much faster. [Contact us](hi@driftingin.space) about moving to a paid plan.)
+
+If you take a look at the terminal window running the dev CLI, you should see that our server component spawned a backend and now its statuses and logs are appearing in the dev CLI output.
 
 ## Implementing cursor presence
 
@@ -324,21 +337,9 @@ io.on('connection', (socket: Socket) => {
 })
 ```
 
-Okay, with that, we're ready to rebuild our backend, push our updates, and refresh.
+Okay, with that, let's take a look at our dev CLI. If it's still running, it should have rebuilt and pushed our session backend code to Jamsocket. It should have also terminated any previous backends running with out of date code.
 
-```
-docker build -t whiteboard-demo --platform=linux/amd64 -f Dockerfile.jamsocket .
-npx jamsocket@latest push whiteboard-demo whiteboard-demo
-```
-
-We should also terminate the backend that's currently running. If we don't, refreshing the page will just connect us to the one that's already running, which doesn't have the code updates we've just added. We'll do that by getting a list of running backends and then using the Jamsocket CLI's terminate command with the name of the backend we want to stop.
-
-```
-npx jamsocket@latest backend list
-npx jamsocket@latest terminate [BACKEND]
-```
-
-Now, let's open the application in a new browser window. If everything works, moving your cursor over one canvas should display a cursor on the other connected client. However, the shapes you create in one window don't appear in the other. Let's fix that in the next section by implementing state sharing across clients.
+Now, if we open the application in a new browser window, we should see a new session backend spawning in the dev CLI. If everything works, moving your cursor over one canvas should show a moving cursor on the other client. However, the shapes you create in one window don't appear in the other. Let's fix that in the next section by implementing state sharing across clients.
 
 ## Implementing shared state
 
@@ -375,13 +376,6 @@ io.on('connection', (socket: Socket) => {
     socket.broadcast.emit('update-shape', shape)
   })
 })
-```
-
-With that, we can rebuild our session backend code and push to Jamsocket.
-
-```
-docker build -t whiteboard-demo --platform=linux/amd64 -f Dockerfile.jamsocket .
-npx jamsocket@latest push whiteboard-demo whiteboard-demo
 ```
 
 Now, let's add our `sendEvent()` and `useEventListener()` calls to the `Home` component.
@@ -429,14 +423,7 @@ Then in our `onCreateShape` and `onUpdateShape` Whiteboard props, we should send
 />
 ```
 
-Now, all that's left is for us to make sure we don't have any running backends, and then refresh the page:
-
-```
-npx jamsocket@latest backend list
-npx jamsocket@latest terminate [BACKEND]
-```
-
-When you open the app in more than one tab, you should see:
+Now, the dev CLI should have updates our session backend code in Jamsocket and removed old session backends we had spawned for development. We should be able to simply open the app in a few browser windows and see:
 
 * an avatar for each user
 * each user's cursor as it hovers over the whiteboard
