@@ -1,21 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from "react"
-
-export type Shape = {
-  x: number
-  y: number
-  w: number
-  h: number
-  color: string
-  id: number
-}
-
-export type User = {
-  cursorX: number | null
-  cursorY: number | null
-  id: string
-}
+import type { Shape, User } from "../types"
 
 type WhiteboardProps = {
   onCreateShape: (shape: Shape) => void

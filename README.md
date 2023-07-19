@@ -175,7 +175,7 @@ export default function HomeContainer({ spawnResult }: { spawnResult: SpawnResul
 Next, let's keep track of which users are in the document with some component state. And we can pass that list of users to our `AvatarList` component which will render an avatar in the header for each user who is currently in the document.
 
 ```ts title="src/components/Home.tsx" hl_lines="1 2 9 12 13 14"
-import type { User } from './Whiteboard'
+import type { Shape, User } from '../types'
 import {AvatarList} from './Whiteboard'
 
 // ...
@@ -350,7 +350,7 @@ The last thing we want to do in this demo is implement state-sharing. Right now,
 This time, we'll start with our session backend code. Let's create an array to store all the shapes. When a new user connects, we'll send them a snapshot of all the shapes. Let's also listen for two new events: `create-shape` and `update-shape`, which will update our list of shapes accordingly.
 
 ```ts title="src/session-backend/index.ts" hl_lines="1 5 8 14 15 16 17 18 19 20 21 22 23 24 25 26 27"
-import type { Shape } from '../components/Whiteboard'
+import type { Shape } from '../types'
 
 // ...
 

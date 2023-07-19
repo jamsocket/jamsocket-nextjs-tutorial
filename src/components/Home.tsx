@@ -4,7 +4,7 @@ import { useState } from 'react'
 import Header from './Header'
 import Content from './Content'
 import { Spinner, Whiteboard } from './Whiteboard'
-import type { Shape } from './Whiteboard'
+import type { Shape } from '../types'
 
 export default function HomeContainer() {
   return <Home />
