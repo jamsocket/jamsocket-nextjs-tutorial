@@ -69,6 +69,7 @@ function Home() {
             }}
           />
         ) : <Spinner />}
+        <div className="p-6">chat</div>
       </Content>
     </main>
   )
