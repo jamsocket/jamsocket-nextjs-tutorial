@@ -9,7 +9,7 @@ const spawnBackend = init({
   service: 'whiteboard-demo',
   // NOTE: we want to keep the Jamsocket token secret, so we can only do this in a server component
   // We'll leave this blank for now, since we don't need it when developing with the dev CLI
-  token: 'hSJfNOIaNyR4YGpq.NzCtO8StvEymuCRoSfor6uWHi9776u',
+  token: '',
   apiUrl: 'http://localhost:8080'
 })
 

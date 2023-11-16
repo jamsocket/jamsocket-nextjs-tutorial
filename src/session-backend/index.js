@@ -1,7 +1,7 @@
 import { Server } from 'socket.io';
 import OpenAI from 'openai';
 console.log('here');
-const openai = new OpenAI({ apiKey: "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" });
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const assistant = await openai.beta.assistants.create({
     instructions: "You are a bot that draws rectangles on a whiteboard. You will receive instructions for where to draw the rectangle and how large a rectangle to draw. Use the function createShape to draw a whiteboard.",
     model: "gpt-4-1106-preview",
@@ -26,7 +26,7 @@ const assistant = await openai.beta.assistants.create({
 const thread = await openai.beta.threads.create();
 const message = await openai.beta.threads.messages.create(thread.id, {
     role: "user",
-    content: "Draw a rectangle 100 x 100 pixels large at position [10, 10]."
+    content: "Draw a rectangle 100 x 100 pixels large at position [-56, -125]."
 });
 console.log("message", message);
 const run = await openai.beta.threads.runs.create(thread.id, {
@@ -45,16 +45,27 @@ async function pollRun() {
                 setTimeout(getRun, 3000); // Poll again if in progress
             }
             else if (runResult?.status === 'requires_action') {
+                console.log("in required action");
                 const toolOutput = JSON.parse(runResult?.required_action?.submit_tool_outputs.tool_calls[0].function.arguments ?? '');
+                const id = Math.floor(Math.random() * 100000);
+                const HUE_OFFSET = Math.random() * 360 | 0;
+                function randomColor() {
+                    const h = (Math.random() * 60 + HUE_OFFSET) % 360 | 0;
+                    const s = (Math.random() * 10 + 30) | 0;
+                    const l = (Math.random() * 20 + 30) | 0;
+                    return `hsl(${0}, ${0}%, ${0}%)`;
+                }
                 const generatedShape = {
                     x: toolOutput?.x,
                     y: toolOutput?.y,
                     w: toolOutput?.w,
                     h: toolOutput?.h,
-                    color: "000",
-                    id: 12345
+                    color: randomColor(),
+                    id: id
                 };
+                console.log("generatedShape", generatedShape);
                 shapes.push(generatedShape);
+                console.log("shapes", shapes);
             }
             else {
                 console.log(runResult); // Log the result if not in progress
@@ -68,9 +79,9 @@ async function pollRun() {
     }
     await getRun(); // Initial call to start the polling process
 }
-pollRun();
 const io = new Server(8080, { cors: { origin: '*' } });
 const shapes = [];
+console.log(shapes);
 const users = new Set();
 io.on('connection', async (socket) => {
     console.log('New user connected:', socket.id);
@@ -89,6 +100,7 @@ io.on('connection', async (socket) => {
     socket.on('create-shape', async (shape) => {
         shapes.push(shape);
         socket.broadcast.emit('snapshot', shapes);
+        pollRun();
     });
     socket.on('update-shape', (updatedShape) => {
         const shape = shapes.find(s => s.id === updatedShape.id);
