@@ -129,9 +129,9 @@ The `init` function here takes three arguments:
 * a service name - that's the name of the service we just created - `whiteboard-demo`
 * an api token - we can leave this blank for now as the Jamsocket dev CLI will take care of authentication while we're development. When it's time to go to production, we can get an API token from [the Settings page](https://app.jamsocket.com/settings).
 
-And it returns a `spawnBackend()` function that we'll use to, well, spawn a backend. It takes a single, optional `spawnOptions` argument. These `spawnOptions` are just camel-cased versions of the options accepted by the HTTP spawn API. (Our docs have more information about [spawn options for the HTTP API](https://docs.jamsocket.com/api-docs/#spawn-a-service).) For now, we will only use one of those spawn options: `lock`. You can learn more about spawning with locks [here](/locking-a-backend-to-a-resource), but for now it suffices to say that we'll just use a document name. And for this demo, we'll just have one document that everybody edits called `whiteboard-demo/default`.
+And it returns a `spawnBackend()` function that we'll use to, well, spawn a backend. It takes a single, optional `spawnOptions` argument. These `spawnOptions` are just camel-cased versions of the options accepted by the HTTP spawn API. (Our docs have more information about [spawn options for the HTTP API](https://docs.jamsocket.com/platform/reference#spawn-a-service).) For now, we will only use one of those spawn options: `lock`. You can learn more about spawning with locks [here](https://docs.jamsocket.com/concepts/locks), but for now it suffices to say that we'll just use a document name. And for this demo, we'll just have one document that everybody edits called `whiteboard-demo/default`.
 
-The result of the `spawnBackend()` function contains a URL that you can use to connect to the session backend, a status URL which returns the current status of the session backend, and some other values like the backend's name and an optional bearer token which is useful when authenticating client requests to a session backend. (We aren't using these bearer tokens in this demo, but you can learn more about them [here](https://docs.jamsocket.com/backend-authentication/)).
+The result of the `spawnBackend()` function contains a URL that you can use to connect to the session backend, a status URL which returns the current status of the session backend, and some other values like the backend's name and an optional bearer token which is useful when authenticating client requests to a session backend. (We aren't using these bearer tokens in this demo, but you can learn more about them [here](https://docs.jamsocket.com/concepts/auth-with-backend)).
 
 Note that `Page` is rendered in a server-side component. This ensures that your secrets aren't leaked to the client. Once we receive the spawn result, the `Page` component will pass that information to the `HomeContainer` component. 
 
@@ -258,7 +258,7 @@ This config file is used by the dev CLI so it knows (1) what Dockerfile to use t
 
 So in our demo, the dev CLI will watch the `src/session-backend` directory, and when a change is detected, it will build the `Dockerfile.jamsocket` Dockerfile. Then it will push the resulting Docker image to the Jamsocket container registry for your `whiteboard-demo` service.
 
-If you're interested in learning how to manually build and push your docker image to the Jamsocket registry, check out [the Hello World Tutorial](https://docs.jamsocket.com/hello-world) which has a simple example.
+If you're interested in learning how to manually build and push your docker image to the Jamsocket registry, check out [the Hello World Tutorial](https://docs.jamsocket.com/quickstart) which has a simple example.
 
 The second thing the dev CLI does for us is keep track of session backends we've spawned during development, terminating backends that are running old code, and streaming status updates and logs from your session backend. It does this by running a proxy server that we'll use when spawning. To make that work, let's pass in an `apiUrl` to our Jamsocket `init()` function in `page.tsx`:
 
