@@ -172,7 +172,7 @@ function Home() {
 Now, in our `Home` component, we can use the `useEventListener` hook to listen for our `user-entered` and `user-exited` events we're sending from our session backend.
 
 ```ts filename="src/components/Home.tsx"
-import { SessionBackendProvider, useEventListener } from '@jamsocket/javascript/react'
+import { useEventListener } from '@jamsocket/javascript/socketio'
 ```
 
 Then we can subscribe to the events with our hook. On the `user-entered` event, we should create a user object with an `id` and a `cursorX` and `cursorY` property (we'll use these when we implement cursor presence). And on the `user-exited` event, let's just remove the user from the list of users in our component state.
@@ -199,7 +199,7 @@ function Home() {
 Let's also import the `useReady` hook that we can use to show a spinner while the session backend is starting up. Depending on your application, it may or may not make sense to show a spinner, but for this demo we'll take the simpler approach of ensuring the session backend is running and the inital document state is loaded before the user can start editing it.
 
 ```ts filename="src/components/Home.tsx" {1, 6}
-import { SessionBackendProvider, useEventListener, useReady } from '@jamsocket/javascript/react'
+import { SessionBackendProvider, useReady } from '@jamsocket/javascript/react'
 
 // ...
 
@@ -262,7 +262,7 @@ Then we need to send a `cursor-position` event to the session backend as our cur
 We can do this by importing the `useSend` hook and then creating a `sendEvent` function with it:
 
 ```ts filename="src/components/Home.tsx" {1, 5}
-import { SessionBackendProvider, useEventListener, useReady, useSend } from '@jamsocket/javascript/react'
+import { useEventListener, useSend } from '@jamsocket/javascript/socketio'
 
 function Home() {
   const ready = useReady()
