@@ -136,14 +136,21 @@ export default async function Page() {
 
 To connect to our session backend, the `HomeContainer` component should accept `spawnResult` as props and pass that into the `SessionBackendProvider`. The `SessionBackendProvider` lets us use the React hooks in `@jamsocket/javascript/react` to interact with the session backend.
 
+You will also need to use the `SocketIOProvider` to connect the client to the SocketIO server in the session backend. The `SocketIOProvider` uses the url from `spawnResult.url` to connect to the SocketIO server. The `SocketIOProvider` lets us use React hooks in `@jamsocket/javascript/socketio` to send and listen to events.
+
 ```ts filename="src/components/Home.tsx"
 import { SessionBackendProvider } from '@jamsocket/javascript/react'
+import { SocketIOProvider } from '@jamsocket/javascript/socketio'
 import type { SpawnResult } from '@jamsocket/javascript/types'
 
 export default function HomeContainer({ spawnResult }: { spawnResult: SpawnResult }) {
-  return <SessionBackendProvider spawnResult={spawnResult}>
-    <Home />
-  </SessionBackendProvider>
+  return (
+    <SessionBackendProvider spawnResult={spawnResult}>
+      <SocketIOProvider url={spawnResult.url}>
+        <Home />
+      </SocketIOProvider>
+    </SessionBackendProvider>
+  )
 }
 ```
 Next, let's keep track of which users are in the document with some component state. And we can pass that list of users to our `AvatarList` component which will render an avatar in the header for each user who is currently in the document.
@@ -171,8 +178,9 @@ function Home() {
 
 Now, in our `Home` component, we can use the `useEventListener` hook to listen for our `user-entered` and `user-exited` events we're sending from our session backend.
 
-```ts filename="src/components/Home.tsx"
-import { useEventListener } from '@jamsocket/javascript/socketio'
+```ts filename="src/components/Home.tsx" {2}
+import { SessionBackendProvider } from '@jamsocket/javascript/react'
+import { SocketIOProvider, useEventListener } from '@jamsocket/javascript/socketio'
 ```
 
 Then we can subscribe to the events with our hook. On the `user-entered` event, we should create a user object with an `id` and a `cursorX` and `cursorY` property (we'll use these when we implement cursor presence). And on the `user-exited` event, let's just remove the user from the list of users in our component state.
@@ -198,8 +206,9 @@ function Home() {
 
 Let's also import the `useReady` hook that we can use to show a spinner while the session backend is starting up. Depending on your application, it may or may not make sense to show a spinner, but for this demo we'll take the simpler approach of ensuring the session backend is running and the inital document state is loaded before the user can start editing it.
 
-```ts filename="src/components/Home.tsx" {1, 6}
+```ts filename="src/components/Home.tsx" {1, 7}
 import { SessionBackendProvider, useReady } from '@jamsocket/javascript/react'
+import { SocketIOProvider, useEventListener } from '@jamsocket/javascript/socketio'
 
 // ...
 
@@ -261,8 +270,9 @@ Then we need to send a `cursor-position` event to the session backend as our cur
 
 We can do this by importing the `useSend` hook and then creating a `sendEvent` function with it:
 
-```ts filename="src/components/Home.tsx" {1, 5}
-import { useEventListener, useSend } from '@jamsocket/javascript/socketio'
+```ts filename="src/components/Home.tsx" {2, 6}
+import { SessionBackendProvider, useReady } from '@jamsocket/javascript/react'
+import { SocketIOProvider, useEventListener, useSend } from '@jamsocket/javascript/socketio'
 
 function Home() {
   const ready = useReady()
