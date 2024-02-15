@@ -21,10 +21,10 @@ Note: we'll be using [Docker's command-line tool](https://www.docker.com/get-sta
 
 ## Setting up the starter repo
 
-We've put together [a starter repo](https://github.com/drifting-in-space/jamsocket-nextjs-tutorial) for this tutorial that contains a NextJS app along with a few helper functions.
+We've put together [a starter repo](https://github.com/jamsocket/jamsocket-nextjs-tutorial) for this tutorial that contains a NextJS app along with a few helper functions.
 
 ```bash
-git clone https://github.com/drifting-in-space/jamsocket-nextjs-tutorial.git
+git clone https://github.com/jamsocket/jamsocket-nextjs-tutorial.git
 cd jamsocket-nextjs-tutorial
 ```
 
