@@ -101,29 +101,29 @@ In our Page component, let's import `@jamsocket/javascript/server`. It contains 
 
 ```ts filename="src/app/page.tsx"
 import 'server-only'
-import { init } from '@jamsocket/javascript/server'
+import Jamsocket from '@jamsocket/javascript/server'
 
-const spawnBackend = init({ dev: true })
+const jamsocket = Jamsocket.init({ dev: true })
 ```
 
-When developing locally with the Jamsocket Dev CLI, we can just pass `{ dev: true }` to the `init()` function. We'll replace this with account and service names and an API token when it comes time to deploy this to Jamsocket. You can see an example in [the `README` for the `@jamsocket/javascript` package](https://github.com/drifting-in-space/jamsocket-javascript).
+When developing locally with the Jamsocket Dev CLI, we can just pass `{ dev: true }` to the `init()` function. We'll replace this with account and service names and an API token when it comes time to deploy this to Jamsocket. You can see an example in [the `README` for the `@jamsocket/javascript` package](https://github.com/jamsocket/jamsocket/tree/main/packages/typescript).
 
-The `init()` call returns a `spawnBackend()` function that we'll use to, well, spawn a backend. It takes a single, optional `spawnOptions` argument. These `spawnOptions` are just camel-cased versions of the options accepted by the HTTP spawn API. (Our docs have more information about [spawn options for the HTTP API](https://docs.jamsocket.com/platform/reference/#spawn-a-service).) For now, we will only use one of those spawn options: `lock`. You can learn more about spawning with locks [here](https://docs.jamsocket.com/concepts/locks), but for now it suffices to say that we'll just use a document name. And for this demo, we'll just have one document that everybody edits called `whiteboard-demo/default`.
+The `init()` call returns a `jamsocket` instance which has a `spawn()` method that we'll use to, well, spawn a backend. It takes a single, optional `spawnOptions` argument. These `spawnOptions` are just camel-cased versions of the options accepted by the HTTP spawn API. (Our docs have more information about [spawn options for the HTTP API](https://docs.jamsocket.com/platform/reference/#spawn-a-service).) For now, we will only use one of those spawn options: `lock`. You can learn more about spawning with locks [here](https://docs.jamsocket.com/concepts/locks), but for now it suffices to say that we'll just use a document name. And for this demo, we'll just have one document that everybody edits called `whiteboard-demo/default`.
 
-The result of the `spawnBackend()` function contains a URL that you can use to connect to the session backend, a status URL which returns the current status of the session backend, and some other values like the backend's name and an optional bearer token which is useful when authenticating client requests to a session backend. (We aren't using these bearer tokens in this demo, but you can learn more about them [here](https://docs.jamsocket.com/concepts/auth-with-backend/)).
+The result of the `jamsocket.spawn()` function contains a URL that you can use to connect to the session backend, a status URL which returns the current status of the session backend, and some other values like the backend's name and an optional bearer token which is useful when authenticating client requests to a session backend. (We aren't using these bearer tokens in this demo, but you can learn more about them [here](https://docs.jamsocket.com/concepts/auth-with-backend/)).
 
 Note that `Page` is rendered in a server-side component. This ensures that your secrets aren't leaked to the client. Once we receive the spawn result, the `Page` component will pass that information to the `HomeContainer` component.
 
 ```ts filename="src/app/page.tsx" {4, 9, 10}
 import 'server-only'
-import { init } from '@jamsocket/javascript/server'
+import Jamsocket from '@jamsocket/javascript/server'
 
 const WHITEBOARD_NAME = 'whiteboard-demo/default'
 
-const spawnBackend = init({ dev: true })
+const jamsocket = Jamsocket.init({ dev: true })
 
 export default async function Page() {
-  const spawnResult = await spawnBackend({ lock: WHITEBOARD_NAME })
+  const spawnResult = await jamsocket.spawn({ lock: WHITEBOARD_NAME })
   return <HomeContainer spawnResult={spawnResult} />
 }
 ```
@@ -238,7 +238,7 @@ module.exports = {
 
 This config file is used by the dev CLI so it knows (1) what Dockerfile to use to build the session backend and (2) which parts of the file system to watch for changes.
 
-So in our demo, the dev CLI will watch the `src/session-backend` directory, and when a change is detected, it will rebuild the `Dockerfile.jamsocket` Dockerfile. Then, when we refresh the page, the `spawnBackend()` function will send a request to the dev server to spawn a new backend using the Docker container that was just built.
+So in our demo, the dev CLI will watch the `src/session-backend` directory, and when a change is detected, it will rebuild the `Dockerfile.jamsocket` Dockerfile. Then, when we refresh the page, the `jamsocket.spawn()` function will send a request to the dev server to spawn a new backend using the Docker container that was just built.
 
 The second thing the dev CLI does for us is keep track of session backends we've spawned during development, terminating backends that are running old code, and streaming status updates and logs from your session backend.
 
@@ -427,7 +427,7 @@ npx jamsocket push whiteboard-demo whiteboard-demo
 6. Change the `init()` call in `src/app/page.tsx` by passing in `account`, `service`, and `token`:
 
 ```ts filename="src/app/page.tsx"
-const spawnBackend = init({
+const jamsocket = Jamsocket.init({
   account: '[YOUR ACCOUNT NAME]', // if you are unsure, you can find this at https://app.jamsocket.com/settings
   service: 'whiteboard-demo',
   token: '[YOUR API TOKEN]', // this is the token you just created in step 5
