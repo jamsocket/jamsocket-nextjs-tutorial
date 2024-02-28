@@ -97,16 +97,16 @@ We need to do two things:
 
 ## Spawning our session backend
 
-In our Page component, let's import `@jamsocket/javascript/server`. It contains helper functions that we can use when spawning and communicating with session backends. It's important that we spawn from server code as eventually we'll be using an API token here that we want to keep secret, so let's use our React Server Component (`src/app/page.tsx`). Notice that when we import our library, we'll be specifically using the `/server` subpath.
+In our Page component, let's import `@jamsocket/server`. It contains helper functions that we can use to spawn a session backend. It's important that we spawn from server code as eventually we'll be using an API token here that we want to keep secret, so let's use our React Server Component (`src/app/page.tsx`). (If you aren't using React Server Components, this could just as easily be done in an API route.)
 
 ```ts filename="src/app/page.tsx"
 import 'server-only'
-import Jamsocket from '@jamsocket/javascript/server'
+import Jamsocket from '@jamsocket/server'
 
 const jamsocket = Jamsocket.init({ dev: true })
 ```
 
-When developing locally with the Jamsocket Dev CLI, we can just pass `{ dev: true }` to the `init()` function. We'll replace this with account and service names and an API token when it comes time to deploy this to Jamsocket. You can see an example in [the `README` for the `@jamsocket/javascript` package](https://github.com/jamsocket/jamsocket/tree/main/packages/typescript).
+When developing locally with the Jamsocket Dev CLI, we can just pass `{ dev: true }` to the `init()` function. We'll replace this with account and service names and an API token when it comes time to deploy this to Jamsocket. You can see an example in [in the `@jamsocket/server` docs](/client-libraries/js-server).
 
 The `init()` call returns a `jamsocket` instance which has a `spawn()` method that we'll use to, well, spawn a backend. It takes a single, optional `spawnOptions` argument. These `spawnOptions` are just camel-cased versions of the options accepted by the HTTP spawn API. (Our docs have more information about [spawn options for the HTTP API](https://docs.jamsocket.com/platform/reference/#spawn-a-service).) For now, we will only use one of those spawn options: `lock`. You can learn more about spawning with locks [here](https://docs.jamsocket.com/concepts/locks), but for now it suffices to say that we'll just use a document name. And for this demo, we'll just have one document that everybody edits called `whiteboard-demo/default`.
 
@@ -116,7 +116,7 @@ Note that `Page` is rendered in a server-side component. This ensures that your 
 
 ```ts filename="src/app/page.tsx" {4, 9, 10}
 import 'server-only'
-import Jamsocket from '@jamsocket/javascript/server'
+import Jamsocket from '@jamsocket/server'
 
 const WHITEBOARD_NAME = 'whiteboard-demo/default'
 
@@ -134,14 +134,13 @@ export default async function Page() {
 
 ## Connecting to our session backend
 
-To connect to our session backend, the `HomeContainer` component should accept `spawnResult` as props and pass that into the `SessionBackendProvider`. The `SessionBackendProvider` lets us use the React hooks in `@jamsocket/javascript/react` to interact with the session backend.
+To connect to our session backend, the `HomeContainer` component should accept `spawnResult` as props and pass that into the `SessionBackendProvider`. The `SessionBackendProvider` lets us use Jamsocket's React hooks to interact with the session backend.
 
-You will also need the `SocketIOProvider` to connect to the SocketIO server running in your session backend. The `SocketIOProvider` uses the url from `spawnResult.url` to connect to the SocketIO server. The `SocketIOProvider` also lets us use React hooks in `@jamsocket/javascript/socketio` to send and listen to events.
+You will also need the `SocketIOProvider` to connect to the SocketIO server running in your session backend. The `SocketIOProvider` uses the url from `spawnResult.url` to connect to the SocketIO server. The `SocketIOProvider` also lets us use Socket.io-specific React hooks in `@jamsocket/socketio` to send and listen to events. Because `@jamsocket/socketio` re-exports `@jamsocket/react`'s exports, we can import everything we need from `@jamsocket/socketio`.
 
 ```ts filename="src/components/Home.tsx"
-import { SessionBackendProvider } from '@jamsocket/javascript/react'
-import { SocketIOProvider } from '@jamsocket/javascript/socketio'
-import type { SpawnResult } from '@jamsocket/javascript/types'
+import { SessionBackendProvider, SocketIOProvider } from '@jamsocket/socketio'
+import type { SpawnResult } from '@jamsocket/socketio'
 
 export default function HomeContainer({ spawnResult }: { spawnResult: SpawnResult }) {
   return (
@@ -178,9 +177,9 @@ function Home() {
 
 Now, in our `Home` component, we can use the `useEventListener` hook to listen for our `user-entered` and `user-exited` events we're sending from our session backend.
 
-```ts filename="src/components/Home.tsx" {2}
-import { SessionBackendProvider } from '@jamsocket/javascript/react'
-import { SocketIOProvider, useEventListener } from '@jamsocket/javascript/socketio'
+```ts filename="src/components/Home.tsx" {1}
+import { SessionBackendProvider, SocketIOProvider, useEventListener } from '@jamsocket/socketio'
+import type { SpawnResult } from '@jamsocket/socketio'
 ```
 
 Then we can subscribe to the events with our hook. On the `user-entered` event, we should create a user object with an `id` and a `cursorX` and `cursorY` property (we'll use these when we implement cursor presence). And on the `user-exited` event, let's just remove the user from the list of users in our component state.
@@ -207,8 +206,8 @@ function Home() {
 Let's also import the `useReady` hook that we can use to show a spinner while the session backend is starting up. Depending on your application, it may or may not make sense to show a spinner, but for this demo we'll take the simpler approach of ensuring the session backend is running and the inital document state is loaded before the user can start editing it.
 
 ```ts filename="src/components/Home.tsx" {1, 7}
-import { SessionBackendProvider, useReady } from '@jamsocket/javascript/react'
-import { SocketIOProvider, useEventListener } from '@jamsocket/javascript/socketio'
+import { SessionBackendProvider, SocketIOProvider, useEventListener, useReady } from '@jamsocket/socketio'
+import type { SpawnResult } from '@jamsocket/socketio'
 
 // ...
 
@@ -270,9 +269,9 @@ Then we need to send a `cursor-position` event to the session backend as our cur
 
 We can do this by importing the `useSend` hook and then creating a `sendEvent` function with it:
 
-```ts filename="src/components/Home.tsx" {2, 6}
-import { SessionBackendProvider, useReady } from '@jamsocket/javascript/react'
-import { SocketIOProvider, useEventListener, useSend } from '@jamsocket/javascript/socketio'
+```ts filename="src/components/Home.tsx" {1, 6}
+import { SessionBackendProvider, SocketIOProvider, useEventListener, useReady, useSend } from '@jamsocket/socketio'
+import type { SpawnResult } from '@jamsocket/socketio'
 
 function Home() {
   const ready = useReady()
