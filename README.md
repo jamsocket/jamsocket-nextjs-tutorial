@@ -110,7 +110,7 @@ When developing locally with the Jamsocket Dev CLI, we can just pass `{ dev: tru
 
 The `init()` call returns a `jamsocket` instance which has a `spawn()` method that we'll use to, well, spawn a backend. It takes a single, optional `spawnOptions` argument. These `spawnOptions` are just camel-cased versions of the options accepted by the HTTP spawn API. (Our docs have more information about [spawn options for the HTTP API](https://docs.jamsocket.com/platform/reference/#spawn-a-service).) For now, we will only use one of those spawn options: `lock`. You can learn more about spawning with locks [here](https://docs.jamsocket.com/concepts/locks), but for now it suffices to say that we'll just use a document name. And for this demo, we'll just have one document that everybody edits called `whiteboard-demo/default`.
 
-The result of the `jamsocket.spawn()` function contains a URL that you can use to connect to the session backend, a status URL which returns the current status of the session backend, and some other values like the backend's name and an optional bearer token which is useful when authenticating client requests to a session backend. (We aren't using these bearer tokens in this demo, but you can learn more about them [here](https://docs.jamsocket.com/concepts/auth-with-backend/)).
+The result of the `jamsocket.spawn()` function contains a [Connection URL](/concepts/connection-url) that you can use to connect to the session backend, a status URL which returns the current status of the session backend, and some other values like the backend's name.
 
 Note that `Page` is rendered in a server-side component. This ensures that your secrets aren't leaked to the client. Once we receive the spawn result, the `Page` component will pass that information to the `HomeContainer` component.
 
@@ -136,7 +136,7 @@ export default async function Page() {
 
 To connect to our session backend, the `HomeContainer` component should accept `spawnResult` as props and pass that into the `SessionBackendProvider`. The `SessionBackendProvider` lets us use Jamsocket's React hooks to interact with the session backend.
 
-You will also need the `SocketIOProvider` to connect to the SocketIO server running in your session backend. The `SocketIOProvider` uses the url from `spawnResult.url` to connect to the SocketIO server. The `SocketIOProvider` also lets us use Socket.io-specific React hooks in `@jamsocket/socketio` to send and listen to events. Because `@jamsocket/socketio` re-exports `@jamsocket/react`'s exports, we can import everything we need from `@jamsocket/socketio`.
+You will also need the `SocketIOProvider` to connect to the SocketIO server running in your session backend. The `SocketIOProvider` uses the [connection url](/concepts/connection-url) from `spawnResult.url` to connect to the SocketIO server. The `SocketIOProvider` also lets us use Socket.io-specific React hooks in `@jamsocket/socketio` to send and listen to events. Because `@jamsocket/socketio` re-exports `@jamsocket/react`'s exports, we can import everything we need from `@jamsocket/socketio`.
 
 ```ts filename="src/components/Home.tsx"
 import { SessionBackendProvider, SocketIOProvider } from '@jamsocket/socketio'
@@ -441,6 +441,5 @@ npx jamsocket backend list
 
 ## What's next?
   - Learn about how to persist your document state when a session backend stops. (Coming soon)
-  - Learn about how to authenticate your users when connecting to a session backend (Coming soon)
 
 If you have any questions about how to use Jamsocket or would like to talk through your particular use case, we'd love to chat! Send us an email at [hi@jamsocket.com](mailto:hi@jamsocket.com)!
