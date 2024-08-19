@@ -101,30 +101,30 @@ In our Page component, let's import `@jamsocket/server`. It contains helper func
 
 ```ts filename="src/app/page.tsx"
 import 'server-only'
-import Jamsocket from '@jamsocket/server'
+import { Jamsocket } from '@jamsocket/server'
 
-const jamsocket = Jamsocket.init({ dev: true })
+const jamsocket = new Jamsocket({ dev: true })
 ```
 
-When developing locally with the Jamsocket Dev CLI, we can just pass `{ dev: true }` to the `init()` function. We'll replace this with account and service names and an API token when it comes time to deploy this to Jamsocket. You can see an example in [in the `@jamsocket/server` docs](/client-libraries/js-server).
+When developing locally with the Jamsocket Dev CLI, we can just pass `{ dev: true }` to the `Jamsocket` constructor. We'll replace this with account and service names and an API token when it comes time to deploy this to Jamsocket. You can see an example in [in the `@jamsocket/server` docs](/client-libraries/js-server).
 
-The `init()` call returns a `jamsocket` instance which has a `spawn()` method that we'll use to, well, spawn a backend. It takes a single, optional `spawnOptions` argument. These `spawnOptions` are just camel-cased versions of the options accepted by the HTTP spawn API. (Our docs have more information about [spawn options for the HTTP API](https://docs.jamsocket.com/platform/reference/#spawn-a-backend).) For now, we will only use one of those spawn options: `lock`. You can learn more about spawning with locks [here](https://docs.jamsocket.com/concepts/locks), but for now it suffices to say that we'll just use a document name. And for this demo, we'll just have one document that everybody edits called `whiteboard-demo/default`.
+The returned `jamsocket` instance has a `connect()` method that we'll use to get a connection URL for connecting to the our session backend from a browser. It takes a single, optional `connectRequest` argument. The `connectRequest` object allows us to configure a lot of aspects of how the session backend runs. (Our docs have more information about [connect() options for the HTTP API](https://docs.jamsocket.com/platform/reference/v2#get-a-connection-url-for-a-backend).) For now, we will only use one of those options: `key`. You can learn more about keys [here](https://docs.jamsocket.com/concepts/keys), but for now it suffices to say that we'll just use a document name. And for this demo, we'll just have one document that everybody edits called `whiteboard-123`.
 
-The result of the `jamsocket.spawn()` function contains a [Connection URL](/concepts/connection-url) that you can use to connect to the session backend, a status URL which returns the current status of the session backend, and some other values like the backend's name.
+The result of the `jamsocket.connect()` function contains a [Connection URL](/concepts/connection-url) that you can use to connect to the session backend, a status URL which returns the current status of the session backend, and some other values like the backend's ID.
 
 Note that `Page` is rendered in a server-side component. This ensures that your secrets aren't leaked to the client. Once we receive the spawn result, the `Page` component will pass that information to the `HomeContainer` component.
 
 ```ts filename="src/app/page.tsx" {4, 9, 10}
 import 'server-only'
-import Jamsocket from '@jamsocket/server'
+import { Jamsocket } from '@jamsocket/server'
 
-const WHITEBOARD_NAME = 'whiteboard-demo/default'
+const WHITEBOARD_NAME = 'whiteboard-123'
 
-const jamsocket = Jamsocket.init({ dev: true })
+const jamsocket = new Jamsocket({ dev: true })
 
 export default async function Page() {
-  const spawnResult = await jamsocket.spawn({ lock: WHITEBOARD_NAME })
-  return <HomeContainer spawnResult={spawnResult} />
+  const connectResponse = await jamsocket.connect({ key: WHITEBOARD_NAME })
+  return <HomeContainer connectResponse={connectResponse} />
 }
 ```
 
@@ -134,18 +134,18 @@ export default async function Page() {
 
 ## Connecting to our session backend
 
-To connect to our session backend, the `HomeContainer` component should accept `spawnResult` as props and pass that into the `SessionBackendProvider`. The `SessionBackendProvider` lets us use Jamsocket's React hooks to interact with the session backend.
+To connect to our session backend, the `HomeContainer` component should accept `connectResponse` as props and pass that into the `SessionBackendProvider`. The `SessionBackendProvider` lets us use Jamsocket's React hooks to interact with the session backend.
 
-You will also need the `SocketIOProvider` to connect to the SocketIO server running in your session backend. The `SocketIOProvider` uses the [connection url](/concepts/connection-url) from `spawnResult.url` to connect to the SocketIO server. The `SocketIOProvider` also lets us use Socket.io-specific React hooks in `@jamsocket/socketio` to send and listen to events. Because `@jamsocket/socketio` re-exports `@jamsocket/react`'s exports, we can import everything we need from `@jamsocket/socketio`.
+You will also need the `SocketIOProvider` to connect to the SocketIO server running in your session backend. The `SocketIOProvider` uses the [connection url](/concepts/connection-url) from `connectResponse.url` to connect to the SocketIO server. The `SocketIOProvider` also lets us use Socket.io-specific React hooks in `@jamsocket/socketio` to send and listen to events. Because `@jamsocket/socketio` re-exports `@jamsocket/react`'s exports, we can import everything we need from `@jamsocket/socketio`.
 
 ```ts filename="src/components/Home.tsx"
 import { SessionBackendProvider, SocketIOProvider } from '@jamsocket/socketio'
-import type { SpawnResult } from '@jamsocket/socketio'
+import type { ConnectResponse } from '@jamsocket/socketio'
 
-export default function HomeContainer({ spawnResult }: { spawnResult: SpawnResult }) {
+export default function HomeContainer({ connectResponse }: { connectResponse: ConnectResponse }) {
   return (
-    <SessionBackendProvider spawnResult={spawnResult}>
-      <SocketIOProvider url={spawnResult.url}>
+    <SessionBackendProvider connectResponse={connectResponse}>
+      <SocketIOProvider url={connectResponse.url}>
         <Home />
       </SocketIOProvider>
     </SessionBackendProvider>
@@ -179,7 +179,7 @@ Now, in our `Home` component, we can use the `useEventListener` hook to listen f
 
 ```ts filename="src/components/Home.tsx" {1}
 import { SessionBackendProvider, SocketIOProvider, useEventListener } from '@jamsocket/socketio'
-import type { SpawnResult } from '@jamsocket/socketio'
+import type { ConnectResponse } from '@jamsocket/socketio'
 ```
 
 Then we can subscribe to the events with our hook. On the `user-entered` event, we should create a user object with an `id` and a `cursorX` and `cursorY` property (we'll use these when we implement cursor presence). And on the `user-exited` event, let's just remove the user from the list of users in our component state.
@@ -207,7 +207,7 @@ Let's also import the `useReady` hook that we can use to show a spinner while th
 
 ```ts filename="src/components/Home.tsx" {1, 7}
 import { SessionBackendProvider, SocketIOProvider, useEventListener, useReady } from '@jamsocket/socketio'
-import type { SpawnResult } from '@jamsocket/socketio'
+import type { ConnectResponse } from '@jamsocket/socketio'
 
 // ...
 
@@ -226,18 +226,21 @@ npx jamsocket dev
 
 The dev CLI does several things to make development easier, the first of which is automatically rebuilding our session backend Docker image when the code changes. When you run `npx jamsocket dev`, the first thing it does is build your session backend code and start a local server that emulates Jamsocket's API.
 
-Let's take a quick look at the `jamsocket.config.js` file in the project root to see how all this works:
+Let's take a quick look at the `jamsocket.config.json` file in the project root to see how all this works:
 
-```js filename="jamsocket.config.js"
-module.exports = {
-  dockerfile: './Dockerfile.jamsocket',
-  watch: ['./src/session-backend']
+```json filename="jamsocket.config.json"
+{
+  "dockerfile": "./src/session-backend/Dockerfile",
+  "watch": ["./src/session-backend"],
+  "dockerOptions": {
+    "path": "."
+  }
 }
 ```
 
-This config file is used by the dev CLI so it knows (1) what Dockerfile to use to build the session backend and (2) which parts of the file system to watch for changes.
+This config file is used by the dev CLI so it knows (1) how to build the session backend into a Docker image and (2) which parts of the file system to watch for changes.
 
-So in our demo, the dev CLI will watch the `src/session-backend` directory, and when a change is detected, it will rebuild the `Dockerfile.jamsocket` Dockerfile. Then, when we refresh the page, the `jamsocket.spawn()` function will send a request to the dev server to spawn a new backend using the Docker container that was just built.
+So in our demo, the dev CLI will watch the `src/session-backend` directory, and when a change is detected, it will rebuild the image using the given Dockerfile and the current working directory as the Docker build context. Then, when we refresh the page, the `jamsocket.connect()` function will send a request to the dev server which will spawn a new backend using the Docker container that was just built and return a connection URL for the backend.
 
 The second thing the dev CLI does for us is keep track of session backends we've spawned during development, terminating backends that are running old code, and streaming status updates and logs from your session backend.
 
@@ -271,7 +274,7 @@ We can do this by importing the `useSend` hook and then creating a `sendEvent` f
 
 ```ts filename="src/components/Home.tsx" {1, 6}
 import { SessionBackendProvider, SocketIOProvider, useEventListener, useReady, useSend } from '@jamsocket/socketio'
-import type { SpawnResult } from '@jamsocket/socketio'
+import type { ConnectResponse } from '@jamsocket/socketio'
 
 function Home() {
   const ready = useReady()
@@ -410,23 +413,17 @@ npx jamsocket login
 npx jamsocket service create whiteboard-demo
 ```
 
-3. Build your session backend into a Docker image with:
+3. Build and push your session backend to Jamsocket:
 
 ```bash copy
-docker build --platform linux/amd64 -t whiteboard-demo -f Dockerfile.jamsocket .
+npx jamsocket push whiteboard-demo -f src/session-backend/Dockerfile
 ```
 
-4. Push your session backend to Jamsocket:
-
-```bash copy
-npx jamsocket push whiteboard-demo whiteboard-demo
-```
-
-5. Create an API token on [the Jamsocket settings page](https://app.jamsocket.com/settings).
-6. Change the `init()` call in `src/app/page.tsx` by passing in `account`, `service`, and `token`:
+4. Create an API token on [the Jamsocket settings page](https://app.jamsocket.com/settings).
+5. Change the `new Jamsocket()` call in `src/app/page.tsx` by passing in `account`, `service`, and `token`:
 
 ```ts filename="src/app/page.tsx"
-const jamsocket = Jamsocket.init({
+const jamsocket = new Jamsocket({
   account: '[YOUR ACCOUNT NAME]', // if you are unsure, you can find this at https://app.jamsocket.com/settings
   service: 'whiteboard-demo',
   token: '[YOUR API TOKEN]', // this is the token you just created in step 5
@@ -440,6 +437,6 @@ npx jamsocket backend list
 ```
 
 ## What's next?
-  - Learn about how to persist your document state when a session backend stops. (Coming soon)
+  - Learn about [how to persist your document state](https://docs.jamsocket.com/concepts/persistence) when a session backend stops.
 
 If you have any questions about how to use Jamsocket or would like to talk through your particular use case, we'd love to chat! Send us an email at [hi@jamsocket.com](mailto:hi@jamsocket.com)!

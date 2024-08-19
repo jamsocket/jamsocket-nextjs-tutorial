@@ -1,0 +1,7 @@
+{
+  "dockerfile": "./src/session-backend/Dockerfile",
+  "watch": ["./src/session-backend"],
+  "dockerOptions": {
+    "path": "."
+  }
+}
