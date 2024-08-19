@@ -108,7 +108,7 @@ const jamsocket = new Jamsocket({ dev: true })
 
 When developing locally with the Jamsocket Dev CLI, we can just pass `{ dev: true }` to the `Jamsocket` constructor. We'll replace this with account and service names and an API token when it comes time to deploy this to Jamsocket. You can see an example in [in the `@jamsocket/server` docs](/client-libraries/js-server).
 
-The returned `jamsocket` instance has a `connect()` method that we'll use to get a connection URL for connecting to the our session backend from a browser. It takes a single, optional `connectRequest` argument. The `connectRequest` object allows us to configure a lot of aspects of how the session backend runs. (Our docs have more information about [connect() options for the HTTP API](https://docs.jamsocket.com/platform/reference/v2#get-a-connection-url-for-a-backend).) For now, we will only use one of those options: `key`. You can learn more about keys [here](https://docs.jamsocket.com/concepts/keys), but for now it suffices to say that we'll just use a document name. And for this demo, we'll just have one document that everybody edits called `default`.
+The returned `jamsocket` instance has a `connect()` method that we'll use to get a connection URL for connecting to the our session backend from a browser. It takes a single, optional `connectRequest` argument. The `connectRequest` object allows us to configure a lot of aspects of how the session backend runs. (Our docs have more information about [connect() options for the HTTP API](https://docs.jamsocket.com/platform/reference/v2#get-a-connection-url-for-a-backend).) For now, we will only use one of those options: `key`. You can learn more about keys [here](https://docs.jamsocket.com/concepts/keys), but for now it suffices to say that we'll just use a document name. And for this demo, we'll just have one document that everybody edits called `whiteboard-123`.
 
 The result of the `jamsocket.connect()` function contains a [Connection URL](/concepts/connection-url) that you can use to connect to the session backend, a status URL which returns the current status of the session backend, and some other values like the backend's ID.
 
@@ -118,7 +118,7 @@ Note that `Page` is rendered in a server-side component. This ensures that your 
 import 'server-only'
 import { Jamsocket } from '@jamsocket/server'
 
-const WHITEBOARD_NAME = 'default'
+const WHITEBOARD_NAME = 'whiteboard-123'
 
 const jamsocket = new Jamsocket({ dev: true })
 
@@ -226,18 +226,21 @@ npx jamsocket dev
 
 The dev CLI does several things to make development easier, the first of which is automatically rebuilding our session backend Docker image when the code changes. When you run `npx jamsocket dev`, the first thing it does is build your session backend code and start a local server that emulates Jamsocket's API.
 
-Let's take a quick look at the `jamsocket.config.js` file in the project root to see how all this works:
+Let's take a quick look at the `jamsocket.config.json` file in the project root to see how all this works:
 
-```js filename="jamsocket.config.js"
-module.exports = {
-  dockerfile: './Dockerfile.jamsocket',
-  watch: ['./src/session-backend']
+```json filename="jamsocket.config.json"
+{
+  "dockerfile": "./src/session-backend/Dockerfile",
+  "watch": ["./src/session-backend"],
+  "dockerOptions": {
+    "path": "."
+  }
 }
 ```
 
-This config file is used by the dev CLI so it knows (1) what Dockerfile to use to build the session backend and (2) which parts of the file system to watch for changes.
+This config file is used by the dev CLI so it knows (1) how to build the session backend into a Docker image and (2) which parts of the file system to watch for changes.
 
-So in our demo, the dev CLI will watch the `src/session-backend` directory, and when a change is detected, it will rebuild the `Dockerfile.jamsocket` Dockerfile. Then, when we refresh the page, the `jamsocket.connect()` function will send a request to the dev server which will spawn a new backend using the Docker container that was just built and return a connection URL for the backend.
+So in our demo, the dev CLI will watch the `src/session-backend` directory, and when a change is detected, it will rebuild the image using the given Dockerfile and the current working directory as the Docker build context. Then, when we refresh the page, the `jamsocket.connect()` function will send a request to the dev server which will spawn a new backend using the Docker container that was just built and return a connection URL for the backend.
 
 The second thing the dev CLI does for us is keep track of session backends we've spawned during development, terminating backends that are running old code, and streaming status updates and logs from your session backend.
 
@@ -410,10 +413,10 @@ npx jamsocket login
 npx jamsocket service create whiteboard-demo
 ```
 
-3. Push your session backend to Jamsocket:
+3. Build and push your session backend to Jamsocket:
 
 ```bash copy
-npx jamsocket push whiteboard-demo -f Dockerfile.jamsocket
+npx jamsocket push whiteboard-demo -f src/session-backend/Dockerfile
 ```
 
 4. Create an API token on [the Jamsocket settings page](https://app.jamsocket.com/settings).
