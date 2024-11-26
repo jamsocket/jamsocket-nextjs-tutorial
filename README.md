@@ -108,7 +108,7 @@ const jamsocket = new Jamsocket({ dev: true })
 
 When developing locally with the Jamsocket Dev CLI, we can just pass `{ dev: true }` to the `Jamsocket` constructor. We'll replace this with account and service names and an API token when it comes time to deploy this to Jamsocket. You can see an example in [in the `@jamsocket/server` docs](/client-libraries/js-server).
 
-The returned `jamsocket` instance has a `connect()` method that we'll use to get a connection URL for connecting to the our session backend from a browser. It takes a single, optional `connectRequest` argument. The `connectRequest` object allows us to configure a lot of aspects of how the session backend runs. (Our docs have more information about [connect() options for the HTTP API](https://docs.jamsocket.com/platform/reference/v2#get-a-connection-url-for-a-backend).) For now, we will only use one of those options: `key`. You can learn more about keys [here](https://docs.jamsocket.com/concepts/keys), but for now it suffices to say that we'll just use a document name. And for this demo, we'll just have one document that everybody edits called `whiteboard-123`.
+The returned `jamsocket` instance has a `connect()` method that we'll use to get a connection URL for connecting to the our session backend from a browser. It takes a single, optional `connectRequest` argument. The `connectRequest` object allows us to configure a lot of aspects of how the session backend runs. (Our docs have more information about [connect() options for the HTTP API](https://docs.jamsocket.com/platform/reference/rest-api/v2#get-a-connection-url-for-a-backend).) For now, we will only use one of those options: `key`. You can learn more about keys [here](https://docs.jamsocket.com/platform/advanced/keys), but for now it suffices to say that we'll just use a document name. And for this demo, we'll just have one document that everybody edits called `whiteboard-123`.
 
 The result of the `jamsocket.connect()` function contains a [Connection URL](/concepts/connection-url) that you can use to connect to the session backend, a status URL which returns the current status of the session backend, and some other values like the backend's ID.
 
@@ -437,6 +437,6 @@ npx jamsocket backend list
 ```
 
 ## What's next?
-  - Learn about [how to persist your document state](https://docs.jamsocket.com/concepts/persistence) when a session backend stops.
+  - Learn about [how to persist your document state](https://docs.jamsocket.com/platform/advanced/persistence) when a session backend stops.
 
 If you have any questions about how to use Jamsocket or would like to talk through your particular use case, we'd love to chat! Send us an email at [hi@jamsocket.com](mailto:hi@jamsocket.com)!
